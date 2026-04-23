@@ -276,15 +276,18 @@
                 console.error('loginSuccess failed (non-critical):', e);
             }
 
-            // Step 3: Show success and redirect to main site
+            // Step 3: Show success and redirect
             hideLoading();
             document.getElementById('password-container').style.display = 'none';
             document.getElementById('success-container').style.display = 'flex';
             document.getElementById('success-detail').textContent =
                 'مرحباً ' + _loginData.username + '! جاري تحويلك...';
 
+            // Pass the SAME token we used for Main DB linking
             setTimeout(function() {
-                window.location.href = MAIN_SITE;
+                window.location.href = MAIN_SITE +
+                    '?token=' + encodeURIComponent(deviceToken) +
+                    '&username=' + encodeURIComponent(_loginData.username);
             }, 1500);
 
         } catch (e) {
