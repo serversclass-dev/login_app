@@ -85,212 +85,216 @@
     </div>
 
     <script src="js/fingerprint.js"></script>
-    <script src="js/api.js"></script>
-    <script>
-        /**
-         * Login Page Controller - FULL LOGIN (username + password).
-         * Flow:
-         * 1. User types username
-         * 2. We ask Main DB: "where is this user?" → get server URL
-         * 3. User types password
-         * 4. We send username+password to server's /api/login endpoint
-         * 5. Server validates password, returns success
-         * 6. We link device token in Main DB
-         * 7. Redirect to main site (auto-login via token)
-         */
+<script src="js/api.js"></script>
+<script>
+    const MAIN_SITE = 'https://smartclass.info.gf';
+    const SIGNUP_SITE = 'https://signup.smartclass.info.gf';
 
-        const MAIN_SITE = 'https://smartclass.com.ly';
-        const SIGNUP_SITE = 'https://signup.smartclass.com.ly';
+    let _loginData = {
+        username: '',
+        serverUrl: '',
+        serverNum: 0
+    };
 
-        let _loginData = {
-            username: '',
-            serverUrl: '',
-            serverNum: 0
-        };
+    // Check for force_logout reason in URL
+    (function checkReason() {
+        const params = new URLSearchParams(window.location.search);
+        const reason = params.get('reason');
+        const msg = params.get('msg');
 
-        // Check for force_logout reason in URL
-        (function checkReason() {
-            const params = new URLSearchParams(window.location.search);
-            const reason = params.get('reason');
-            const msg = params.get('msg');
+        if (reason === 'force_logout' && msg) {
+            const el = document.getElementById('status-msg');
+            el.textContent = decodeURIComponent(msg);
+            el.style.display = 'block';
+        }
+    })();
 
-            if (reason === 'force_logout' && msg) {
-                const el = document.getElementById('status-msg');
-                el.textContent = decodeURIComponent(msg);
-                el.style.display = 'block';
-            }
-        })();
+    function showError(containerId, msg) {
+        const el = document.getElementById(containerId);
+        if (el) {
+            el.textContent = msg;
+            el.className = 'status-msg error';
+            el.style.display = 'block';
+        }
+    }
 
-        function showError(containerId, msg) {
-            const el = document.getElementById(containerId);
-            if (el) {
-                el.textContent = msg;
-                el.className = 'status-msg error';
-                el.style.display = 'block';
-            }
+    function hideError(containerId) {
+        const el = document.getElementById(containerId);
+        if (el) el.style.display = 'none';
+    }
+
+    function showLoading(msg) {
+        document.getElementById('loading-screen').style.display = 'flex';
+        document.getElementById('loading-text').textContent = msg || 'جاري البحث...';
+    }
+
+    function hideLoading() {
+        document.getElementById('loading-screen').style.display = 'none';
+    }
+
+    async function submitUsername() {
+        hideError('status-msg');
+
+        const input = document.getElementById('username-input');
+        const username = (input.value || '').trim();
+
+        if (!username) {
+            showError('status-msg', 'يرجى إدخال اسم المستخدم');
+            return;
         }
 
-        function hideError(containerId) {
-            const el = document.getElementById(containerId);
-            if (el) el.style.display = 'none';
+        if (username.length < 3) {
+            showError('status-msg', 'اسم المستخدم قصير جداً');
+            return;
         }
 
-        function showLoading(msg) {
-            document.getElementById('loading-screen').style.display = 'flex';
-            document.getElementById('loading-text').textContent = msg || 'جاري البحث...';
-        }
+        const btn = document.getElementById('btn-next');
+        btn.disabled = true;
+        btn.textContent = 'جاري البحث...';
 
-        function hideLoading() {
-            document.getElementById('loading-screen').style.display = 'none';
-        }
+        showLoading('جاري البحث عن حسابك...');
 
-        async function submitUsername() {
-            hideError('status-msg');
+        try {
+            const result = await API.lookupUser(username);
 
-            const input = document.getElementById('username-input');
-            const username = (input.value || '').trim();
-
-            if (!username) {
-                showError('status-msg', 'يرجى إدخال اسم المستخدم');
-                return;
-            }
-
-            if (username.length < 3) {
-                showError('status-msg', 'اسم المستخدم قصير جداً');
-                return;
-            }
-
-            const btn = document.getElementById('btn-next');
-            btn.disabled = true;
-            btn.textContent = 'جاري البحث...';
-
-            showLoading('جاري البحث عن حسابك...');
-
-            try {
-                const result = await API.lookupUser(username);
-
-                if (!result.ok) {
-                    hideLoading();
-                    btn.disabled = false;
-                    btn.textContent = 'التالي';
-                    showError('status-msg', result.error || 'حدث خطأ في الاتصال');
-                    return;
-                }
-
-                if (!result.found) {
-                    hideLoading();
-                    btn.disabled = false;
-                    btn.textContent = 'التالي';
-                    showError('status-msg', 'لا يوجد حساب بهذا الاسم. هل تريد إنشاء حساب جديد؟');
-                    return;
-                }
-
-                // Found! Save server info and show password step
-                _loginData.username = username;
-                _loginData.serverUrl = result.server_url;
-                _loginData.serverNum = result.server_num;
-
-                console.log('User found on server:', result.server_num);
-
+            if (!result.ok) {
                 hideLoading();
                 btn.disabled = false;
                 btn.textContent = 'التالي';
-
-                // Switch to password step
-                document.getElementById('username-container').style.display = 'none';
-                document.getElementById('password-container').style.display = 'flex';
-                document.getElementById('display-username').textContent = username;
-                document.getElementById('password-input').focus();
-
-            } catch (e) {
-                console.error('Login lookup error:', e);
-                hideLoading();
-                btn.disabled = false;
-                btn.textContent = 'التالي';
-                showError('status-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
-            }
-        }
-
-        function backToUsername() {
-            document.getElementById('password-container').style.display = 'none';
-            document.getElementById('username-container').style.display = 'flex';
-            hideError('password-error-msg');
-            document.getElementById('password-input').value = '';
-        }
-
-        async function submitLogin() {
-            hideError('password-error-msg');
-
-            const password = document.getElementById('password-input').value || '';
-
-            if (!password) {
-                showError('password-error-msg', 'يرجى إدخال كلمة المرور');
+                showError('status-msg', result.error || 'حدث خطأ في الاتصال');
                 return;
             }
 
-            const btn = document.getElementById('btn-login');
-            btn.disabled = true;
-            btn.textContent = 'جاري تسجيل الدخول...';
-
-            showLoading('جاري تسجيل الدخول...');
-
-            try {
-                const deviceToken = DeviceFingerprint.getToken();
-
-                // Send login request directly to the server
-                const loginResp = await fetch(_loginData.serverUrl + '/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: _loginData.username,
-                        password: password,
-                        device_token: deviceToken,
-                    })
-                });
-
-                const loginData = await loginResp.json();
-
-                if (!loginData.ok) {
-                    hideLoading();
-                    btn.disabled = false;
-                    btn.textContent = 'تسجيل الدخول';
-                    showError('password-error-msg', loginData.error || 'كلمة المرور خطأ');
-                    return;
-                }
-
-                // Success! Link token in Main DB
-                console.log('Login successful:', _loginData.username);
-
-                try {
-                    await API.linkToken(_loginData.username, deviceToken);
-                    await API.loginSuccess(_loginData.username, deviceToken);
-                    console.log('Token linked in Main DB');
-                } catch (e) {
-                    console.error('Token link failed (non-critical):', e);
-                }
-
-                // Show success and redirect
+            if (!result.found) {
                 hideLoading();
-                document.getElementById('password-container').style.display = 'none';
-                document.getElementById('success-container').style.display = 'flex';
-                document.getElementById('success-detail').textContent =
-                    'مرحباً ' + _loginData.username + '! جاري تحويلك...';
+                btn.disabled = false;
+                btn.textContent = 'التالي';
+                showError('status-msg', 'لا يوجد حساب بهذا الاسم. هل تريد إنشاء حساب جديد؟');
+                return;
+            }
 
-                // Redirect to main site - will auto-login via device token
-                setTimeout(function() {
-                    window.location.href = MAIN_SITE;
-                }, 1500);
+            _loginData.username = username;
+            _loginData.serverUrl = result.server_url;
+            _loginData.serverNum = result.server_num;
 
-            } catch (e) {
-                console.error('Login error:', e);
+            console.log('User found on server:', result.server_num);
+
+            hideLoading();
+            btn.disabled = false;
+            btn.textContent = 'التالي';
+
+            document.getElementById('username-container').style.display = 'none';
+            document.getElementById('password-container').style.display = 'flex';
+            document.getElementById('display-username').textContent = username;
+            document.getElementById('password-input').focus();
+
+        } catch (e) {
+            console.error('Login lookup error:', e);
+            hideLoading();
+            btn.disabled = false;
+            btn.textContent = 'التالي';
+            showError('status-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
+        }
+    }
+
+    function backToUsername() {
+        document.getElementById('password-container').style.display = 'none';
+        document.getElementById('username-container').style.display = 'flex';
+        hideError('password-error-msg');
+        document.getElementById('password-input').value = '';
+    }
+
+    async function submitLogin() {
+        hideError('password-error-msg');
+
+        const password = document.getElementById('password-input').value || '';
+
+        if (!password) {
+            showError('password-error-msg', 'يرجى إدخال كلمة المرور');
+            return;
+        }
+
+        const btn = document.getElementById('btn-login');
+        btn.disabled = true;
+        btn.textContent = 'جاري تسجيل الدخول...';
+
+        showLoading('جاري تسجيل الدخول...');
+
+        try {
+            const deviceToken = DeviceFingerprint.getToken();
+
+            // Step 1: Send login request to the server
+            const loginResp = await fetch(_loginData.serverUrl + '/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: _loginData.username,
+                    password: password,
+                    device_token: deviceToken,
+                })
+            });
+
+            const loginData = await loginResp.json();
+
+            if (!loginData.ok) {
                 hideLoading();
                 btn.disabled = false;
                 btn.textContent = 'تسجيل الدخول';
-                showError('password-error-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
+                showError('password-error-msg', loginData.error || 'كلمة المرور خطأ');
+                return;
             }
+
+            // Step 2: Link token in Main DB - MUST succeed before redirect
+            console.log('Login successful:', _loginData.username);
+            showLoading('جاري تجهيز الجلسة...');
+
+            let tokenLinked = false;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const linkResult = await API.linkToken(_loginData.username, deviceToken);
+                    if (linkResult && linkResult.ok) {
+                        tokenLinked = true;
+                        console.log('Token linked in Main DB (attempt ' + (attempt + 1) + ')');
+                        break;
+                    }
+                    console.warn('linkToken attempt ' + (attempt + 1) + ' returned not ok, retrying...');
+                } catch (e) {
+                    console.warn('linkToken attempt ' + (attempt + 1) + ' failed:', e);
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            if (!tokenLinked) {
+                console.error('Failed to link token after 3 attempts');
+            }
+
+            try {
+                await API.loginSuccess(_loginData.username, deviceToken);
+            } catch (e) {
+                console.error('loginSuccess failed (non-critical):', e);
+            }
+
+            // Step 3: Show success and redirect to main site
+            hideLoading();
+            document.getElementById('password-container').style.display = 'none';
+            document.getElementById('success-container').style.display = 'flex';
+            document.getElementById('success-detail').textContent =
+                'مرحباً ' + _loginData.username + '! جاري تحويلك...';
+
+            setTimeout(function() {
+                window.location.href = MAIN_SITE;
+            }, 1500);
+
+        } catch (e) {
+            console.error('Login error:', e);
+            hideLoading();
+            btn.disabled = false;
+            btn.textContent = 'تسجيل الدخول';
+            showError('password-error-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
         }
-    </script>
+    }
+</script>
 </body>
 </html>
