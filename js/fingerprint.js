@@ -1,10 +1,8 @@
 /**
- * Device Fingerprint Generator.
- * Creates a unique-ish device identifier using browser properties.
- * Stored in localStorage + cookie for persistence.
- *
- * This is NOT cryptographic security - it's a convenience token
- * for auto-login across visits on the same device/browser.
+ * Device Fingerprint Generator - FIXED VERSION.
+ * Token is purely based on device properties.
+ * No random component = same device always gets same token.
+ * Works across subdomains because it doesn't depend on localStorage.
  */
 
 const DeviceFingerprint = (function() {
@@ -13,7 +11,7 @@ const DeviceFingerprint = (function() {
     const COOKIE_DAYS = 365;
 
     /**
-     * Generate a fingerprint hash from browser properties.
+     * Generate a fingerprint from browser properties.
      */
     function _generateRawFingerprint() {
         const components = [];
@@ -39,7 +37,7 @@ const DeviceFingerprint = (function() {
         // User Agent
         components.push(navigator.userAgent || '');
 
-        // WebGL renderer (if available)
+        // WebGL renderer
         try {
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -74,34 +72,49 @@ const DeviceFingerprint = (function() {
     }
 
     /**
-     * Simple hash function (djb2 variant).
+     * Strong hash function - produces longer, more unique hash.
+     * Uses multiple rounds to reduce collisions.
      */
     function _hash(str) {
-        let hash = 5381;
+        // Hash 1: djb2
+        let hash1 = 5381;
         for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) + hash) + str.charCodeAt(i);
-            hash = hash & hash; // Convert to 32bit integer
+            hash1 = ((hash1 << 5) + hash1) + str.charCodeAt(i);
+            hash1 = hash1 & hash1;
         }
-        // Convert to positive hex string
-        return 'sc_' + (hash >>> 0).toString(16) + '_' + str.length.toString(16);
+
+        // Hash 2: sdbm
+        let hash2 = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash2 = str.charCodeAt(i) + (hash2 << 6) + (hash2 << 16) - hash2;
+            hash2 = hash2 & hash2;
+        }
+
+        // Hash 3: simple sum with position
+        let hash3 = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash3 = hash3 + (str.charCodeAt(i) * (i + 1));
+            hash3 = hash3 & hash3;
+        }
+
+        return 'sc_' +
+            (hash1 >>> 0).toString(16).padStart(8, '0') + '_' +
+            (hash2 >>> 0).toString(16).padStart(8, '0') + '_' +
+            (hash3 >>> 0).toString(16).padStart(8, '0');
     }
 
     /**
-     * Generate a random component to make token unique even on identical devices.
-     */
-    function _randomPart() {
-        const arr = new Uint8Array(8);
-        crypto.getRandomValues(arr);
-        return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    /**
-     * Set cookie.
+     * Set cookie with domain that works across subdomains.
      */
     function _setCookie(value) {
         const expires = new Date();
         expires.setDate(expires.getDate() + COOKIE_DAYS);
-        document.cookie = `${COOKIE_NAME}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+        // Set on parent domain so all subdomains can read it
+        document.cookie = COOKIE_NAME + '=' + value +
+            ';expires=' + expires.toUTCString() +
+            ';path=/' +
+            ';domain=.smartclass.com.ly' +
+            ';SameSite=Lax';
     }
 
     /**
@@ -113,33 +126,21 @@ const DeviceFingerprint = (function() {
     }
 
     /**
-     * Get or create the device token.
-     * Priority: localStorage > cookie > generate new
+     * Get the device token.
+     * DETERMINISTIC: same device = same token, every time, on every subdomain.
+     * No random component.
      */
     function getToken() {
-        // Try localStorage first
-        let token = null;
-        try {
-            token = localStorage.getItem(STORAGE_KEY);
-        } catch(e) {}
+        // Always generate the deterministic fingerprint
+        const raw = _generateRawFingerprint();
+        const token = _hash(raw);
 
-        // Try cookie
-        if (!token) {
-            token = _getCookie();
-        }
-
-        // Generate new if none found
-        if (!token) {
-            const raw = _generateRawFingerprint();
-            const fingerprint = _hash(raw);
-            const random = _randomPart();
-            token = fingerprint + '_' + random;
-        }
-
-        // Persist in both storage mechanisms
+        // Store in localStorage (for this subdomain's cache)
         try {
             localStorage.setItem(STORAGE_KEY, token);
         } catch(e) {}
+
+        // Store in cookie on parent domain (shared across subdomains)
         _setCookie(token);
 
         return token;
@@ -152,7 +153,9 @@ const DeviceFingerprint = (function() {
         try {
             localStorage.removeItem(STORAGE_KEY);
         } catch(e) {}
-        document.cookie = `${COOKIE_NAME}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        // Clear on parent domain too
+        document.cookie = COOKIE_NAME + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.smartclass.com.ly';
+        document.cookie = COOKIE_NAME + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
     }
 
     return {
