@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - ServerClass</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen" style="display:none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p id="loading-text">جاري البحث...</p>
+        </div>
+    </div>
+
+    <!-- Step 1: Username -->
+    <div id="username-container" class="login-container">
+        <div class="login-card">
+            <h2>🎓 تسجيل الدخول</h2>
+            <p class="subtitle">أدخل اسم المستخدم للمتابعة</p>
+
+            <div id="status-msg" class="status-msg error" style="display:none;"></div>
+
+            <div class="form-group">
+                <label for="username-input">اسم المستخدم</label>
+                <input type="text" id="username-input" placeholder="أدخل اسم المستخدم"
+                       autocomplete="username" autofocus
+                       onkeypress="if(event.key==='Enter') submitUsername()">
+            </div>
+
+            <div class="form-actions">
+                <button id="btn-next" class="btn btn-primary" onclick="submitUsername()">
+                    التالي
+                </button>
+            </div>
+
+            <div class="form-footer">
+                <p>ليس لديك حساب؟ <a href="https://signup.smartclass.com.ly">إنشاء حساب جديد</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Password -->
+    <div id="password-container" class="login-container" style="display:none;">
+        <div class="login-card">
+            <h2>🔐 كلمة المرور</h2>
+            <p class="subtitle">أدخل كلمة المرور للمستخدم <strong id="display-username"></strong></p>
+
+            <div id="password-error-msg" class="status-msg error" style="display:none;"></div>
+
+            <div class="form-group">
+                <label for="password-input">كلمة المرور</label>
+                <input type="password" id="password-input" placeholder="أدخل كلمة المرور"
+                       autocomplete="current-password"
+                       onkeypress="if(event.key==='Enter') submitLogin()">
+            </div>
+
+            <div class="form-actions">
+                <button id="btn-login" class="btn btn-primary" onclick="submitLogin()">
+                    تسجيل الدخول
+                </button>
+                <button class="btn btn-secondary" onclick="backToUsername()" style="margin-top:10px;">
+                    رجوع
+                </button>
+            </div>
+
+            <div class="form-footer">
+                <p>ليس لديك حساب؟ <a href="https://signup.smartclass.com.ly">إنشاء حساب جديد</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="success-container" class="login-container" style="display:none;">
+        <div class="login-card">
+            <h2>✅ تم تسجيل الدخول بنجاح!</h2>
+            <p class="subtitle" id="success-detail">جاري تحويلك...</p>
+            <div class="loading-content">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/fingerprint.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        /**
+         * Login Page Controller - FULL LOGIN (username + password).
+         * Flow:
+         * 1. User types username
+         * 2. We ask Main DB: "where is this user?" → get server URL
+         * 3. User types password
+         * 4. We send username+password to server's /api/login endpoint
+         * 5. Server validates password, returns success
+         * 6. We link device token in Main DB
+         * 7. Redirect to main site (auto-login via token)
+         */
+
+        const MAIN_SITE = 'https://smartclass.com.ly';
+        const SIGNUP_SITE = 'https://signup.smartclass.com.ly';
+
+        let _loginData = {
+            username: '',
+            serverUrl: '',
+            serverNum: 0
+        };
+
+        // Check for force_logout reason in URL
+        (function checkReason() {
+            const params = new URLSearchParams(window.location.search);
+            const reason = params.get('reason');
+            const msg = params.get('msg');
+
+            if (reason === 'force_logout' && msg) {
+                const el = document.getElementById('status-msg');
+                el.textContent = decodeURIComponent(msg);
+                el.style.display = 'block';
+            }
+        })();
+
+        function showError(containerId, msg) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                el.textContent = msg;
+                el.className = 'status-msg error';
+                el.style.display = 'block';
+            }
+        }
+
+        function hideError(containerId) {
+            const el = document.getElementById(containerId);
+            if (el) el.style.display = 'none';
+        }
+
+        function showLoading(msg) {
+            document.getElementById('loading-screen').style.display = 'flex';
+            document.getElementById('loading-text').textContent = msg || 'جاري البحث...';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-screen').style.display = 'none';
+        }
+
+        async function submitUsername() {
+            hideError('status-msg');
+
+            const input = document.getElementById('username-input');
+            const username = (input.value || '').trim();
+
+            if (!username) {
+                showError('status-msg', 'يرجى إدخال اسم المستخدم');
+                return;
+            }
+
+            if (username.length < 3) {
+                showError('status-msg', 'اسم المستخدم قصير جداً');
+                return;
+            }
+
+            const btn = document.getElementById('btn-next');
+            btn.disabled = true;
+            btn.textContent = 'جاري البحث...';
+
+            showLoading('جاري البحث عن حسابك...');
+
+            try {
+                const result = await API.lookupUser(username);
+
+                if (!result.ok) {
+                    hideLoading();
+                    btn.disabled = false;
+                    btn.textContent = 'التالي';
+                    showError('status-msg', result.error || 'حدث خطأ في الاتصال');
+                    return;
+                }
+
+                if (!result.found) {
+                    hideLoading();
+                    btn.disabled = false;
+                    btn.textContent = 'التالي';
+                    showError('status-msg', 'لا يوجد حساب بهذا الاسم. هل تريد إنشاء حساب جديد؟');
+                    return;
+                }
+
+                // Found! Save server info and show password step
+                _loginData.username = username;
+                _loginData.serverUrl = result.server_url;
+                _loginData.serverNum = result.server_num;
+
+                console.log('User found on server:', result.server_num);
+
+                hideLoading();
+                btn.disabled = false;
+                btn.textContent = 'التالي';
+
+                // Switch to password step
+                document.getElementById('username-container').style.display = 'none';
+                document.getElementById('password-container').style.display = 'flex';
+                document.getElementById('display-username').textContent = username;
+                document.getElementById('password-input').focus();
+
+            } catch (e) {
+                console.error('Login lookup error:', e);
+                hideLoading();
+                btn.disabled = false;
+                btn.textContent = 'التالي';
+                showError('status-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
+            }
+        }
+
+        function backToUsername() {
+            document.getElementById('password-container').style.display = 'none';
+            document.getElementById('username-container').style.display = 'flex';
+            hideError('password-error-msg');
+            document.getElementById('password-input').value = '';
+        }
+
+        async function submitLogin() {
+            hideError('password-error-msg');
+
+            const password = document.getElementById('password-input').value || '';
+
+            if (!password) {
+                showError('password-error-msg', 'يرجى إدخال كلمة المرور');
+                return;
+            }
+
+            const btn = document.getElementById('btn-login');
+            btn.disabled = true;
+            btn.textContent = 'جاري تسجيل الدخول...';
+
+            showLoading('جاري تسجيل الدخول...');
+
+            try {
+                const deviceToken = DeviceFingerprint.getToken();
+
+                // Send login request directly to the server
+                const loginResp = await fetch(_loginData.serverUrl + '/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: _loginData.username,
+                        password: password,
+                        device_token: deviceToken,
+                    })
+                });
+
+                const loginData = await loginResp.json();
+
+                if (!loginData.ok) {
+                    hideLoading();
+                    btn.disabled = false;
+                    btn.textContent = 'تسجيل الدخول';
+                    showError('password-error-msg', loginData.error || 'كلمة المرور خطأ');
+                    return;
+                }
+
+                // Success! Link token in Main DB
+                console.log('Login successful:', _loginData.username);
+
+                try {
+                    await API.linkToken(_loginData.username, deviceToken);
+                    await API.loginSuccess(_loginData.username, deviceToken);
+                    console.log('Token linked in Main DB');
+                } catch (e) {
+                    console.error('Token link failed (non-critical):', e);
+                }
+
+                // Show success and redirect
+                hideLoading();
+                document.getElementById('password-container').style.display = 'none';
+                document.getElementById('success-container').style.display = 'flex';
+                document.getElementById('success-detail').textContent =
+                    'مرحباً ' + _loginData.username + '! جاري تحويلك...';
+
+                // Redirect to main site - will auto-login via device token
+                setTimeout(function() {
+                    window.location.href = MAIN_SITE;
+                }, 1500);
+
+            } catch (e) {
+                console.error('Login error:', e);
+                hideLoading();
+                btn.disabled = false;
+                btn.textContent = 'تسجيل الدخول';
+                showError('password-error-msg', 'حدث خطأ. تحقق من اتصالك بالإنترنت.');
+            }
+        }
+    </script>
+</body>
+</html>

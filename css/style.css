@@ -1,0 +1,337 @@
+/* ═══════════════════════════════════════════════════
+   ServerClass Website - Global Styles
+   ═══════════════════════════════════════════════════ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Tajawal', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #fff;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* ─── Loading Screen ─── */
+
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #7c3aed;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-content p {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ─── Main Container ─── */
+
+.main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* ─── Hero ─── */
+
+.hero {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.logo-text {
+    font-size: 48px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #7c3aed, #a78bfa, #c4b5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 15px;
+}
+
+.tagline {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 400;
+}
+
+/* ─── Action Buttons ─── */
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 380px;
+}
+
+.btn {
+    border: none;
+    border-radius: 14px;
+    padding: 16px 32px;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.btn-lg {
+    padding: 18px 36px;
+    font-size: 20px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(124, 58, 237, 0.6);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* ─── Error Message ─── */
+
+.error-msg {
+    margin-top: 20px;
+    padding: 14px 24px;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 12px;
+    color: #fca5a5;
+    font-size: 16px;
+    text-align: center;
+    max-width: 380px;
+    width: 100%;
+}
+
+/* ─── App iframe ─── */
+
+.app-frame {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    z-index: 100;
+}
+
+/* ─── Login Page Styles ─── */
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+
+.login-card h2 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.login-card .subtitle {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: right;
+}
+
+.form-group label {
+    display: block;
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 8px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s ease;
+    direction: rtl;
+}
+
+.form-group input:focus {
+    border-color: #7c3aed;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.form-actions {
+    margin-top: 28px;
+}
+
+.form-actions .btn {
+    width: 100%;
+}
+
+.form-footer {
+    margin-top: 24px;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.form-footer a {
+    color: #a78bfa;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.form-footer a:hover {
+    color: #c4b5fd;
+    text-decoration: underline;
+}
+
+/* ─── Status Messages ─── */
+
+.status-msg {
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.status-msg.info {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+}
+
+.status-msg.success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #86efac;
+}
+
+.status-msg.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+/* ─── Back Button ─── */
+
+.back-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Responsive ─── */
+
+@media (max-width: 480px) {
+    .logo-text {
+        font-size: 36px;
+    }
+    .tagline {
+        font-size: 16px;
+    }
+    .btn-lg {
+        padding: 16px 28px;
+        font-size: 18px;
+    }
+    .login-card {
+        padding: 30px 24px;
+    }
+}
